@@ -2,38 +2,467 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Nexus Talk</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NEXUS // OVERLORD</title>
+    <link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@200;400;600;800&family=Roboto+Mono:wght@300;500&display=swap" rel="stylesheet">
+    
     <style>
-        body { background: #050508; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: 'Courier New', monospace; overflow: hidden; color: #00f2ff; }
-        
-        /* ปุ่มไมค์ยักษ์ */
-        #micBtn {
-            width: 180px; height: 180px;
-            border-radius: 50%;
-            background: rgba(0, 242, 255, 0.1);
-            border: 2px solid #00f2ff;
-            box-shadow: 0 0 30px rgba(0, 242, 255, 0.2);
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-            user-select: none; transition: 0.2s; -webkit-tap-highlight-color: transparent;
-        }
-        
-        /* เอฟเฟกต์ตอนกด */
-        #micBtn:active {
-            background: #00f2ff; color: #000;
-            transform: scale(0.95);
-            box-shadow: 0 0 60px rgba(0, 242, 255, 0.8);
+        /* =========================================
+           1. CORE VARIABLES (THEME CONFIG)
+           ========================================= */
+        :root {
+            /* Palette: Deep Ocean Cyberpunk */
+            --bg-dark: #03080f;
+            --bg-panel: rgba(10, 25, 41, 0.7);
+            
+            --primary: #00f3ff;  /* Cyan Neon */
+            --primary-dim: rgba(0, 243, 255, 0.15);
+            --primary-glow: rgba(0, 243, 255, 0.6);
+            
+            --accent: #2d6cdf;   /* Deep Blue */
+            --success: #00ffa3;  /* Bio Green */
+            --alert: #ff2a6d;    /* Glitch Red */
+            
+            --glass: rgba(255, 255, 255, 0.03);
+            --border: rgba(0, 243, 255, 0.3);
+            
+            --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+            --font-ui: 'Oxanium', display;
+            --font-code: 'Roboto Mono', monospace;
+            
+            --hud-gap: 20px;
         }
 
-        .status { margin-top: 30px; font-size: 14px; opacity: 0.8; letter-spacing: 2px; }
-        .log { position: absolute; bottom: 20px; font-size: 10px; opacity: 0.5; }
+        /* =========================================
+           2. GLOBAL RESET & BASE
+           ========================================= */
+        *, *::before, *::after {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+
+        body {
+            margin: 0;
+            height: 100vh;
+            background-color: var(--bg-dark);
+            color: var(--primary);
+            font-family: var(--font-ui);
+            overflow: hidden;
+            display: grid;
+            grid-template-rows: 80px 1fr 120px;
+            position: relative;
+        }
+
+        /* Background Grid System (Pure CSS) */
+        body::before {
+            content: '';
+            position: absolute; inset: 0;
+            background-image: 
+                linear-gradient(var(--primary-dim) 1px, transparent 1px),
+                linear-gradient(90deg, var(--primary-dim) 1px, transparent 1px);
+            background-size: 40px 40px;
+            background-position: center;
+            opacity: 0.2;
+            z-index: 0;
+            mask-image: radial-gradient(circle at center, black 40%, transparent 90%);
+        }
+
+        /* Moving Scanline */
+        body::after {
+            content: '';
+            position: absolute; inset: 0;
+            background: linear-gradient(to bottom, transparent 50%, rgba(0, 243, 255, 0.05) 50%);
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        /* =========================================
+           3. UI COMPONENTS: HEADER
+           ========================================= */
+        .hud-header {
+            z-index: 10;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0 25px;
+            border-bottom: 1px solid var(--border);
+            background: linear-gradient(180deg, rgba(0,0,0,0.8) 0%, rgba(0,243,255,0.05) 100%);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.5);
+            clip-path: polygon(0 0, 100% 0, 100% 80%, 95% 100%, 5% 100%, 0 80%);
+        }
+
+        .brand-block {
+            display: flex; flex-direction: column;
+        }
+        .brand-block h1 {
+            margin: 0; font-size: 24px; font-weight: 800; letter-spacing: 2px;
+            text-shadow: 0 0 10px var(--primary);
+            text-transform: uppercase;
+        }
+        .brand-block small {
+            font-family: var(--font-code); font-size: 10px; opacity: 0.7; color: var(--success);
+            letter-spacing: 1px;
+        }
+
+        .net-status {
+            display: flex; align-items: center; gap: 8px;
+            font-family: var(--font-code); font-size: 11px;
+            border: 1px solid var(--border);
+            padding: 5px 10px; border-radius: 4px;
+            background: rgba(0,0,0,0.4);
+        }
+        .net-led {
+            width: 8px; height: 8px; background: #333; border-radius: 50%;
+            transition: 0.3s;
+        }
+        .net-led.on { background: var(--success); box-shadow: 0 0 10px var(--success); }
+        .net-led.off { background: var(--alert); box-shadow: 0 0 10px var(--alert); }
+
+        /* =========================================
+           4. VISUALIZER & CENTER STAGE
+           ========================================= */
+        .stage-container {
+            z-index: 5;
+            display: flex; justify-content: center; align-items: center;
+            position: relative;
+            perspective: 1000px;
+        }
+
+        /* Complex Circle HUD */
+        .hud-circle {
+            position: absolute;
+            width: 340px; height: 340px;
+            border-radius: 50%;
+            pointer-events: none;
+            display: flex; justify-content: center; align-items: center;
+        }
+
+        /* Ring 1: Static Dashed */
+        .hud-ring-1 {
+            position: absolute; width: 100%; height: 100%;
+            border: 1px dashed var(--border); border-radius: 50%;
+            opacity: 0.5;
+        }
+
+        /* Ring 2: Rotating Tech */
+        .hud-ring-2 {
+            position: absolute; width: 90%; height: 90%;
+            border: 2px solid transparent;
+            border-top: 2px solid var(--primary);
+            border-bottom: 2px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 15s linear infinite;
+            box-shadow: 0 0 15px var(--primary-dim);
+        }
+
+        /* Ring 3: Counter-Rotating */
+        .hud-ring-3 {
+            position: absolute; width: 75%; height: 75%;
+            border: 1px solid var(--border); border-radius: 50%;
+            border-left: 4px solid var(--accent);
+            border-right: 4px solid var(--accent);
+            animation: spin 8s reverse linear infinite;
+        }
+
+        /* The Canvas (Waveform) */
+        #viz-canvas {
+            position: absolute; width: 400px; height: 150px;
+            z-index: 0; opacity: 0.4;
+            transform: rotate(-10deg); /* Slight tilt for style */
+            pointer-events: none;
+            filter: drop-shadow(0 0 5px var(--primary));
+        }
+
+        /* =========================================
+           5. THE BUTTON (PTT REACTOR)
+           ========================================= */
+        .reactor-btn {
+            position: relative; z-index: 20;
+            width: 180px; height: 180px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 40% 40%, rgba(45, 108, 223, 0.2), rgba(0,0,0,0.9));
+            border: 2px solid var(--primary-dim);
+            backdrop-filter: blur(5px);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            cursor: pointer;
+            box-shadow: 
+                0 0 0 10px rgba(0, 243, 255, 0.05),
+                0 0 50px rgba(0, 243, 255, 0.1);
+            transition: all 0.3s var(--ease-out);
+            overflow: hidden;
+        }
+
+        .reactor-btn i {
+            font-size: 48px; color: var(--primary);
+            filter: drop-shadow(0 0 5px var(--primary));
+            transition: 0.3s;
+            z-index: 2;
+        }
+        
+        .reactor-btn span {
+            margin-top: 10px; font-family: var(--font-code); font-size: 12px;
+            letter-spacing: 2px; color: rgba(255,255,255,0.7);
+            z-index: 2; font-weight: 700;
+        }
+
+        /* Liquid Fill Effect (Pseudo) */
+        .reactor-btn::before {
+            content: ''; position: absolute;
+            top: 100%; left: 0; width: 100%; height: 100%;
+            background: var(--primary);
+            opacity: 0.2;
+            transition: top 0.3s ease;
+            z-index: 1; border-radius: 50%;
+        }
+
+        /* Active State (ON PRESS) */
+        .reactor-btn:active, .reactor-btn.active {
+            transform: scale(0.92);
+            border-color: var(--alert);
+            box-shadow: 0 0 0 15px rgba(255, 42, 109, 0.1), 0 0 80px rgba(255, 42, 109, 0.4);
+        }
+        
+        .reactor-btn.active i { color: var(--alert); filter: drop-shadow(0 0 10px var(--alert)); transform: scale(1.1); }
+        .reactor-btn.active span { color: var(--alert); content: 'TRANSMITTING'; }
+        .reactor-btn.active::before { top: 0; background: var(--alert); }
+
+        /* Rings react to active */
+        .reactor-btn.active ~ .hud-circle .hud-ring-2 { border-color: var(--alert); animation-duration: 2s; }
+
+        /* =========================================
+           6. FOOTER: TERMINAL & LOGS
+           ========================================= */
+        .hud-footer {
+            z-index: 10;
+            background: rgba(0, 0, 0, 0.8);
+            border-top: 1px solid var(--border);
+            padding: 15px;
+            font-family: var(--font-code);
+            font-size: 11px;
+            display: flex; flex-direction: column;
+            clip-path: polygon(0 20%, 5% 0, 95% 0, 100% 20%, 100% 100%, 0 100%);
+        }
+
+        .log-container {
+            flex-grow: 1; overflow: hidden;
+            display: flex; flex-direction: column-reverse;
+        }
+        
+        .log-line {
+            margin-bottom: 4px; padding-left: 10px; border-left: 2px solid var(--primary-dim);
+            color: rgba(0, 243, 255, 0.8); text-shadow: 0 0 2px var(--primary);
+            animation: fadeIn 0.3s ease;
+        }
+        .log-line.err { border-color: var(--alert); color: #ff8888; }
+        .log-line span { opacity: 0.5; margin-right: 5px; }
+
+        /* =========================================
+           7. UTILITY ANIMATIONS
+           ========================================= */
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+
+        /* Receiving Overlay */
+        #rx-panel {
+            position: absolute; top: 110px; left: 0; width: 100%;
+            text-align: center; pointer-events: none; opacity: 0; transition: opacity 0.2s;
+        }
+        #rx-panel.visible { opacity: 1; }
+        .rx-tag {
+            background: var(--success); color: #000;
+            padding: 5px 15px; font-weight: 800; font-size: 14px;
+            display: inline-block; transform: skewX(-20deg);
+            box-shadow: 0 0 20px var(--success);
+        }
+
     </style>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
 
-    <div id="micBtn">
-        <span style="font-size:30px">🎤</span>
-        <span style="margin-top:10px; font-weight:bold">PUSH</span>
+    <header class="hud-header">
+        <div class="brand-block">
+            <h1>NEXUS<span style="color:var(--primary)">OS</span></h1>
+            <small>UNIT ID: <span id="client-id">INIT...</span></small>
+        </div>
+        <div class="net-status">
+            <div class="net-led off" id="status-led"></div>
+            <span id="status-txt">OFFLINE</span>
+        </div>
+    </header>
+
+    <div class="stage-container">
+        <div id="rx-panel">
+            <div class="rx-tag">INCOMING TRANSMISSION</div>
+        </div>
+
+        <div class="hud-circle">
+            <div class="hud-ring-1"></div>
+            <div class="hud-ring-2"></div>
+            <div class="hud-ring-3"></div>
+        </div>
+
+        <canvas id="viz-canvas"></canvas>
+
+        <div class="reactor-btn" id="ptt-btn">
+            <i class="fa-solid fa-microphone"></i>
+            <span id="btn-text">PUSH START</span>
+        </div>
+    </div>
+
+    <footer class="hud-footer">
+        <div class="log-container" id="sys-log">
+            <div class="log-line"><span>[SYS]</span> UI RENDER ENGINE: V.9.0 READY</div>
+            <div class="log-line"><span>[SYS]</span> LOADING AUDIO KERNEL...</div>
+        </div>
+    </footer>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        // =========================================
+        // JAVASCRIPT LOGIC (OPTIMIZED)
+        // =========================================
+        const socket = io();
+        const btn = document.getElementById('ptt-btn');
+        const btnText = document.getElementById('btn-text');
+        const logBox = document.getElementById('sys-log');
+        const led = document.getElementById('status-led');
+        const statusTxt = document.getElementById('status-txt');
+        const clientId = document.getElementById('client-id');
+        const rxPanel = document.getElementById('rx-panel');
+        const canvas = document.getElementById('viz-canvas');
+        const ctx = canvas.getContext('2d');
+
+        let mediaRecorder, chunks = [], audioCtx, analyser, dataArray, animationFrame;
+
+        // --- Logger System ---
+        function log(msg, type='info') {
+            const div = document.createElement('div');
+            div.className = `log-line ${type === 'err' ? 'err' : ''}`;
+            const time = new Date().toLocaleTimeString('en-US', {hour12:false, hour:'2-digit', minute:'2-digit', second:'2-digit'});
+            div.innerHTML = `<span>[${time}]</span> ${msg}`;
+            logBox.prepend(div);
+            if(logBox.children.length > 6) logBox.lastElementChild.remove();
+        }
+
+        // --- Visualizer Engine ---
+        function initAudio() {
+            if(audioCtx) return;
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioCtx.createAnalyser();
+            analyser.fftSize = 64; // Low res for retro look
+            dataArray = new Uint8Array(analyser.frequencyBinCount);
+            
+            // Resize Canvas
+            canvas.width = 400; canvas.height = 150;
+            drawViz();
+        }
+
+        function drawViz() {
+            animationFrame = requestAnimationFrame(drawViz);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            if(analyser) analyser.getByteFrequencyData(dataArray);
+            
+            const barWidth = (canvas.width / 32);
+            let x = 0;
+
+            for(let i = 0; i < 32; i++) {
+                // Mock data if not active
+                let barHeight = analyser ? (dataArray[i] / 2) : 5; 
+                
+                // Neon Gradient
+                let grad = ctx.createLinearGradient(0, canvas.height/2 - barHeight, 0, canvas.height/2 + barHeight);
+                grad.addColorStop(0, "rgba(0, 243, 255, 0)");
+                grad.addColorStop(0.5, "rgba(0, 243, 255, 1)");
+                grad.addColorStop(1, "rgba(0, 243, 255, 0)");
+
+                ctx.fillStyle = grad;
+                ctx.fillRect(x, (canvas.height - barHeight * 2) / 2, barWidth - 4, barHeight * 2);
+                x += barWidth;
+            }
+        }
+        drawViz(); // Start idle loop
+
+        // --- Socket Events ---
+        socket.on('connect', () => {
+            led.className = 'net-led on';
+            statusTxt.innerText = "ONLINE";
+            statusTxt.style.color = "var(--success)";
+            clientId.innerText = socket.id.substring(0, 8).toUpperCase();
+            log("UPLINK ESTABLISHED");
+        });
+
+        socket.on('disconnect', () => {
+            led.className = 'net-led off';
+            statusTxt.innerText = "OFFLINE";
+            statusTxt.style.color = "var(--alert)";
+            log("CONNECTION LOST", 'err');
+        });
+
+        socket.on('play-voice', (voiceBuffer) => {
+            log("RX: DECRYPTING AUDIO STREAM...");
+            rxPanel.classList.add('visible');
+            const blob = new Blob([voiceBuffer], { type: 'audio/webm;codecs=opus' });
+            const audio = new Audio(URL.createObjectURL(blob));
+            audio.play()
+                .then(() => setTimeout(() => rxPanel.classList.remove('visible'), 2000))
+                .catch(e => log("PLAYBACK ERR", 'err'));
+        });
+
+        // --- Interaction Logic ---
+        const startTx = async (e) => {
+            if(e.cancelable) e.preventDefault();
+            
+            if(!audioCtx) initAudio();
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                // Connect Viz
+                const source = audioCtx.createMediaStreamSource(stream);
+                source.connect(analyser);
+
+                mediaRecorder = new MediaRecorder(stream);
+                chunks = [];
+                mediaRecorder.ondataavailable = e => chunks.push(e.data);
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(chunks, { 'type' : 'audio/ogg; codecs=opus' });
+                    socket.emit('send-voice', blob);
+                    log(`TX: PACKET SENT (${(blob.size/1024).toFixed(1)}KB)`);
+                    source.disconnect(); // Disconnect Viz
+                };
+                
+                mediaRecorder.start();
+                btn.classList.add('active');
+                btnText.innerText = "TRANSMITTING";
+                if(navigator.vibrate) navigator.vibrate(50);
+
+            } catch (err) {
+                log("MIC ACCESS DENIED", 'err');
+            }
+        };
+
+        const stopTx = (e) => {
+            if(e.cancelable) e.preventDefault();
+            if(mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+                btn.classList.remove('active');
+                btnText.innerText = "PUSH START";
+                if(navigator.vibrate) navigator.vibrate(20);
+            }
+        };
+
+        // Bindings
+        btn.addEventListener('touchstart', startTx, {passive: false});
+        btn.addEventListener('touchend', stopTx);
+        btn.addEventListener('mousedown', startTx);
+        btn.addEventListener('mouseup', stopTx);
+
+    </script>
+</body>
+</html>
     </div>
 
     <div class="status" id="statusText">STANDBY</div>
