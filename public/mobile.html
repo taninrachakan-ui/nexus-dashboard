@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Nexus Talk</title>
+    <style>
+        body { background: #050508; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: 'Courier New', monospace; overflow: hidden; color: #00f2ff; }
+        
+        /* ปุ่มไมค์ยักษ์ */
+        #micBtn {
+            width: 180px; height: 180px;
+            border-radius: 50%;
+            background: rgba(0, 242, 255, 0.1);
+            border: 2px solid #00f2ff;
+            box-shadow: 0 0 30px rgba(0, 242, 255, 0.2);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            user-select: none; transition: 0.2s; -webkit-tap-highlight-color: transparent;
+        }
+        
+        /* เอฟเฟกต์ตอนกด */
+        #micBtn:active {
+            background: #00f2ff; color: #000;
+            transform: scale(0.95);
+            box-shadow: 0 0 60px rgba(0, 242, 255, 0.8);
+        }
+
+        .status { margin-top: 30px; font-size: 14px; opacity: 0.8; letter-spacing: 2px; }
+        .log { position: absolute; bottom: 20px; font-size: 10px; opacity: 0.5; }
+    </style>
+</head>
+<body>
+
+    <div id="micBtn">
+        <span style="font-size:30px">🎤</span>
+        <span style="margin-top:10px; font-weight:bold">PUSH</span>
+    </div>
+
+    <div class="status" id="statusText">STANDBY</div>
+    <div class="log" id="connLog">Connecting...</div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        // *** 1. เชื่อมต่อ (ไม่ต้องแก้ถ้าอยู่บน Glitch/Server เดียวกัน) ***
+        // หรือถ้า Server อยู่ที่อื่น ให้ใส่ URL เต็มๆ เช่น io('https://myapp.com')
+        const socket = io(); 
+
+        const btn = document.getElementById('micBtn');
+        const statusText = document.getElementById('statusText');
+        const connLog = document.getElementById('connLog');
+
+        let mediaRecorder;
+        let audioChunks = [];
+
+        // --- ส่วนเชื่อมต่อ ---
+        socket.on('connect', () => {
+            connLog.innerText = "LINKED: " + socket.id;
+            statusText.innerText = "ONLINE";
+        });
+
+        // --- ส่วนรับเสียง (ฟังคนอื่น) ---
+        socket.on('play-voice', (voiceBuffer) => {
+            const blob = new Blob([voiceBuffer], { type: 'audio/webm;codecs=opus' });
+            const audioUrl = URL.createObjectURL(blob);
+            const audio = new Audio(audioUrl);
+            audio.play().catch(e => console.log('Playback error:', e));
+            
+            statusText.innerText = "RECEIVING...";
+            setTimeout(() => { statusText.innerText = "ONLINE"; }, 1000);
+        });
+
+        // --- ส่วนส่งเสียง (พูด) ---
+        navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(stream => {
+                mediaRecorder = new MediaRecorder(stream);
+
+                mediaRecorder.addEventListener("dataavailable", event => {
+                    audioChunks.push(event.data);
+                });
+
+                mediaRecorder.addEventListener("stop", () => {
+                    const audioBlob = new Blob(audioChunks);
+                    socket.emit('send-voice', audioBlob); // ส่งไป Server
+                    audioChunks = [];
+                });
+            })
+            .catch(err => {
+                connLog.innerText = "MIC ERROR: " + err.message;
+            });
+
+        // กดค้างเพื่อพูด
+        btn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if(mediaRecorder && mediaRecorder.state === "inactive") {
+                mediaRecorder.start();
+                statusText.innerText = "TRANSMITTING";
+                statusText.style.color = "#ff0055";
+                btn.style.borderColor = "#ff0055";
+            }
+        });
+
+        btn.addEventListener('touchend', (e) => {
+            if(mediaRecorder && mediaRecorder.state === "recording") {
+                mediaRecorder.stop();
+                statusText.innerText = "ONLINE";
+                statusText.style.color = "#00f2ff";
+                btn.style.borderColor = "#00f2ff";
+            }
+        });
+    </script>
+</body>
+</html>
