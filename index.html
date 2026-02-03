@@ -14,8 +14,9 @@
             --bg: #000000;
             --card-bg: #111111;
             --glass: rgba(255, 255, 255, 0.1);
-            --primary: #00f3ff;  /* สีฟ้านีออน */
-            --secondary: #bc13fe; /* สีม่วงนีออน */
+            --primary: #00f3ff;
+            --secondary: #bc13fe;
+            --danger: #ff0f4d; /* สีแดง */
             --text: #ffffff;
             --text-mute: #666666;
         }
@@ -25,7 +26,6 @@
         body {
             margin: 0; background-color: var(--bg); color: var(--text);
             font-family: 'Inter', sans-serif; overflow-x: hidden; padding-bottom: 90px;
-            /* Grid Background จางๆ */
             background-image: 
                 linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px), 
                 linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
@@ -34,6 +34,317 @@
 
         /* HEADER */
         .header {
+            padding: 20px 24px; display: flex; justify-content: space-between; align-items: center;
+            background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(10px);
+            position: sticky; top: 0; z-index: 100;
+        }
+        .brand {
+            font-family: 'Rajdhani', sans-serif; font-size: 26px; font-weight: 800; letter-spacing: 1px;
+            color: var(--primary); text-transform: uppercase;
+            text-shadow: 0 0 20px rgba(0, 243, 255, 0.5);
+        }
+        .brand span { color: white; }
+        .status-dot { width: 8px; height: 8px; background: var(--text-mute); border-radius: 50%; transition: 0.3s; }
+        .status-dot.online { background: #00ff88; box-shadow: 0 0 10px #00ff88; }
+
+        /* CARDS & LAYOUT */
+        .page-section { display: none; padding: 20px; animation: fadeIn 0.4s ease-out; }
+        .page-section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .card {
+            background: var(--card-bg); border: 1px solid #222; border-radius: 24px;
+            padding: 24px; margin-bottom: 20px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .card-title { 
+            font-size: 11px; color: var(--text-mute); margin-bottom: 15px; 
+            display: flex; justify-content: space-between; letter-spacing: 1px; text-transform: uppercase;
+        }
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+        .stat-val { font-family: 'Rajdhani', sans-serif; font-size: 42px; font-weight: 700; margin-bottom: 4px; line-height: 1; }
+        .stat-sub { font-size: 10px; color: var(--primary); font-weight: 600; letter-spacing: 0.5px; }
+        .chart-container { width: 100%; height: 200px; position: relative; }
+        canvas { width: 100% !important; height: 100% !important; }
+
+        /* LOGS & LISTS */
+        .terminal-window { height: 300px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 12px; }
+        .log-item { margin-bottom: 8px; padding-left: 10px; border-left: 2px solid #333; color: #aaa; }
+        .log-item span { color: var(--primary); }
+        .user-row { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px solid #222; }
+        .user-avatar { width: 36px; height: 36px; background: #222; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--primary); margin-right: 12px; }
+
+        /* BOTTOM NAV & BUTTON */
+        .bottom-nav {
+            position: fixed; bottom: 0; left: 0; width: 100%; height: 80px;
+            background: rgba(0, 0, 0, 0.9); backdrop-filter: blur(20px);
+            border-top: 1px solid #222; display: flex; justify-content: space-around; align-items: center; z-index: 200;
+            padding-bottom: 15px;
+        }
+        .nav-btn {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: #444; font-size: 24px; gap: 4px; width: 60px; height: 100%; cursor: pointer; transition: 0.2s;
+        }
+        .nav-btn.active { color: var(--primary); }
+        .nav-label { font-size: 10px; font-weight: 500; }
+        
+        /* --- ปุ่มไมค์แบบใหม่ --- */
+        .fab {
+            width: 60px; height: 60px; 
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-size: 28px; color: white; 
+            box-shadow: 0 0 25px rgba(0, 243, 255, 0.4);
+            transform: translateY(-25px); border: 5px solid var(--bg);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        /* สถานะตอนเปิดไมค์ค้าง (สีแดง + กระพริบ) */
+        .fab.mic-on {
+            background: var(--danger);
+            box-shadow: 0 0 30px var(--danger);
+            border-color: #330000;
+            animation: pulse-red 1s infinite;
+        }
+
+        @keyframes pulse-red {
+            0% { transform: translateY(-25px) scale(1); box-shadow: 0 0 20px var(--danger); }
+            50% { transform: translateY(-25px) scale(1.1); box-shadow: 0 0 40px var(--danger); }
+            100% { transform: translateY(-25px) scale(1); box-shadow: 0 0 20px var(--danger); }
+        }
+
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <div class="brand">VN GROUP <span>// OS</span></div>
+        <div class="status-dot" id="status-dot"></div>
+    </header>
+
+    <div id="page-home" class="page-section active">
+        <div class="stats-grid">
+            <div class="card">
+                <div class="card-title"><i class="ri-user-voice-line"></i> Active</div>
+                <div class="stat-val" id="user-count">0</div>
+                <div class="stat-sub">UNITS CONNECTED</div>
+            </div>
+            <div class="card">
+                <div class="card-title"><i class="ri-cpu-line"></i> Load</div>
+                <div class="stat-val" id="cpu-load">12%</div>
+                <div class="stat-sub" style="color:var(--secondary)">SYSTEM STABLE</div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-title">TRAFFIC MONITOR <i class="ri-bar-chart-box-line"></i></div>
+            <div class="chart-container"><canvas id="trafficChart"></canvas></div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">LOGS</div>
+            <div id="mini-log" style="font-size:12px; color:#666;">Ready...</div>
+        </div>
+    </div>
+
+    <div id="page-logs" class="page-section">
+        <div class="card">
+            <div class="card-title">FULL SYSTEM TERMINAL</div>
+            <div class="terminal-window" id="full-logs"></div>
+        </div>
+    </div>
+
+    <div id="page-users" class="page-section">
+        <div class="card">
+            <div class="card-title">CONNECTED UNITS</div>
+            <div id="user-list-container"></div>
+        </div>
+    </div>
+
+    <div id="page-settings" class="page-section">
+        <div class="card">
+            <div class="card-title">SERVER CONFIG</div>
+            <div style="padding: 10px 0; border-bottom: 1px solid #222; display:flex; justify-content:space-between;">
+                <span>Mic Mode</span> <span style="color:var(--danger)">LOCKED (TEST)</span>
+            </div>
+        </div>
+    </div>
+
+    <nav class="bottom-nav">
+        <div class="nav-btn active" onclick="switchPage('home', this)">
+            <i class="ri-dashboard-fill"></i><span class="nav-label">Home</span>
+        </div>
+        <div class="nav-btn" onclick="switchPage('logs', this)">
+            <i class="ri-file-list-3-line"></i><span class="nav-label">Logs</span>
+        </div>
+        
+        <div class="fab" id="mic-btn"><i class="ri-mic-fill"></i></div>
+
+        <div class="nav-btn" onclick="switchPage('users', this)">
+            <i class="ri-group-line"></i><span class="nav-label">Users</span>
+        </div>
+        <div class="nav-btn" onclick="switchPage('settings', this)">
+            <i class="ri-settings-4-line"></i><span class="nav-label">Set</span>
+        </div>
+    </nav>
+
+    <script>
+        const socket = io();
+        
+        // --- 1. CONFIG & VARIABLES ---
+        const myID = "UNIT-" + Math.floor(Math.random() * 9000 + 1000);
+        let mediaRecorder;
+        let isTalking = false; // สถานะไมค์
+        const fabBtn = document.getElementById('mic-btn');
+
+        // --- 2. SOCKET SYSTEM ---
+        socket.on('connect', () => {
+            document.getElementById('status-dot').classList.add('online');
+            addLog('SYS', 'Link Established');
+            socket.emit('register', { id: myID });
+        });
+        socket.on('disconnect', () => {
+            document.getElementById('status-dot').classList.remove('online');
+            addLog('ERR', 'Connection Lost');
+        });
+        socket.on('update-stats', (data) => {
+            document.getElementById('user-count').innerText = data.count;
+            if(data.lastAction) {
+                addLog('NET', data.lastAction);
+                document.getElementById('mini-log').innerText = data.lastAction;
+            }
+            renderUserList(data.users);
+        });
+
+        // --- 3. VOICE SYSTEM (TOGGLE MODE) ---
+        // เปลี่ยนเป็น click event แทน mousedown/mouseup
+        fabBtn.addEventListener('click', toggleMic);
+
+        async function toggleMic() {
+            if (!isTalking) {
+                // --- เปิดไมค์ ---
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    
+                    // เปลี่ยน UI เป็นสีแดง
+                    fabBtn.classList.add('mic-on');
+                    fabBtn.innerHTML = '<i class="ri-stop-circle-fill"></i>'; // เปลี่ยนไอคอนเป็นปุ่ม Stop
+                    addLog('VOICE', 'Microphone LOCKED: ON');
+
+                    mediaRecorder.ondataavailable = (event) => {
+                        if (event.data.size > 0) {
+                            socket.emit('voice-stream', event.data);
+                        }
+                    };
+
+                    // ส่งเสียงทุกๆ 500ms (ครึ่งวินาที)
+                    mediaRecorder.start(500);
+                    isTalking = true;
+
+                } catch (err) {
+                    console.error("Mic Error:", err);
+                    alert("หาไมค์ไม่เจอ หรือไม่ได้อนุญาตสิทธิ์!");
+                }
+            } else {
+                // --- ปิดไมค์ ---
+                if(mediaRecorder && mediaRecorder.state !== 'inactive') {
+                    mediaRecorder.stop();
+                    mediaRecorder.stream.getTracks().forEach(track => track.stop()); // ปิด Hardware จริง
+                }
+
+                // เปลี่ยน UI กลับ
+                fabBtn.classList.remove('mic-on');
+                fabBtn.innerHTML = '<i class="ri-mic-fill"></i>'; // กลับเป็นไอคอนไมค์
+                addLog('VOICE', 'Microphone LOCKED: OFF');
+                isTalking = false;
+            }
+        }
+
+        // --- 4. RECEIVER (คนฟัง) ---
+        socket.on('voice-receive', async (data) => {
+            const blob = new Blob([data.audio], { type: 'audio/webm;codecs=opus' });
+            const audioUrl = URL.createObjectURL(blob);
+            const audio = new Audio(audioUrl);
+            try {
+                await audio.play();
+                visualizeVoiceActive(true);
+                audio.onended = () => visualizeVoiceActive(false);
+            } catch (e) { /* Auto-play blocked handled */ }
+        });
+
+        function visualizeVoiceActive(isActive) {
+            const chart = document.querySelector('.chart-container');
+            chart.style.filter = isActive ? "drop-shadow(0 0 10px #00f3ff)" : "none";
+        }
+
+        // --- 5. UI UTILITIES ---
+        function renderUserList(users) {
+            const container = document.getElementById('user-list-container');
+            if(!users || users.length === 0) return;
+            let html = '';
+            users.forEach(u => {
+                const isMe = u.id === myID ? '(YOU)' : '';
+                html += `<div class="user-row"><div style="display:flex; align-items:center;"><div class="user-avatar" style="color:${u.id === myID ? '#00f3ff' : 'white'}"><i class="ri-user-3-fill"></i></div><div><div style="font-weight:600; color:white;">${u.id} <span style="font-size:10px; color:#666;">${isMe}</span></div><div style="font-size:11px; color:#666;">${u.ip}</div></div></div><div style="color:#00ff88; font-size:10px; border:1px solid #00ff88; padding:2px 6px; border-radius:4px;">ONLINE</div></div>`;
+            });
+            container.innerHTML = html;
+        }
+
+        function addLog(type, msg) {
+            const fullLogs = document.getElementById('full-logs');
+            const div = document.createElement('div');
+            div.className = 'log-item';
+            div.innerHTML = `<span>[${type}]</span> ${msg} <span style="opacity:0.3; float:right">${new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>`;
+            fullLogs.prepend(div);
+        }
+
+        window.switchPage = function(pageId, btnElement) {
+            document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
+            document.getElementById('page-' + pageId).classList.add('active');
+            document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+            if(btnElement) btnElement.classList.add('active');
+        }
+
+        // --- 6. GRAPH ENGINE ---
+        const canvas = document.getElementById('trafficChart');
+        const ctx = canvas.getContext('2d');
+        let dataPoints = new Array(30).fill(50); 
+        function resizeCanvas() { canvas.width = canvas.parentElement.clientWidth; canvas.height = canvas.parentElement.clientHeight; }
+        window.addEventListener('resize', resizeCanvas); resizeCanvas();
+
+        function draw() {
+            dataPoints.shift(); 
+            // ถ้าไมค์เปิดอยู่ (isTalking) กราฟจะสะบัดแรง
+            const amplitude = isTalking ? 60 : 25; 
+            const smoothVal = 50 + Math.sin(Date.now()/500) * amplitude + (Math.random() * 10 - 5);
+            dataPoints.push(smoothVal);
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            const gradient = ctx.createLinearGradient(0,0,0,canvas.height);
+            gradient.addColorStop(0, 'rgba(0, 243, 255, 0.3)'); gradient.addColorStop(1, 'rgba(0, 243, 255, 0)');
+            ctx.beginPath(); const step = canvas.width / (dataPoints.length - 1); ctx.moveTo(0, canvas.height - (dataPoints[0]/100 * canvas.height));
+            for (let i = 0; i < dataPoints.length - 1; i++) {
+                const x_mid = (i * step + (i + 1) * step) / 2;
+                const y_mid = (canvas.height - (dataPoints[i]/100 * canvas.height) + canvas.height - (dataPoints[i+1]/100 * canvas.height)) / 2;
+                ctx.quadraticCurveTo(i * step, canvas.height - (dataPoints[i]/100 * canvas.height), x_mid, y_mid);
+            }
+            ctx.lineTo(canvas.width, canvas.height); ctx.lineTo(0, canvas.height); ctx.fillStyle = gradient; ctx.fill();
+            ctx.beginPath(); ctx.lineWidth = 3; ctx.strokeStyle = isTalking ? '#ff0f4d' : '#00f3ff'; /* เปลี่ยนสีกราฟถ้าพูดอยู่ */
+            ctx.shadowBlur = 15; ctx.shadowColor = isTalking ? '#ff0f4d' : '#00f3ff';
+            ctx.moveTo(0, canvas.height - (dataPoints[0]/100 * canvas.height));
+            for (let i = 0; i < dataPoints.length - 1; i++) {
+                const x_mid = (i * step + (i + 1) * step) / 2;
+                const y_mid = (canvas.height - (dataPoints[i]/100 * canvas.height) + canvas.height - (dataPoints[i+1]/100 * canvas.height)) / 2;
+                ctx.quadraticCurveTo(i * step, canvas.height - (dataPoints[i]/100 * canvas.height), x_mid, y_mid);
+            }
+            ctx.stroke();
+            if(Math.random() > 0.95) document.getElementById('cpu-load').innerText = Math.floor(Math.random()*20+10) + '%';
+            requestAnimationFrame(draw);
+        }
+        draw();
+    </script>
+</body>
+</html>
             padding: 20px 24px; display: flex; justify-content: space-between; align-items: center;
             background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(10px);
             position: sticky; top: 0; z-index: 100;
