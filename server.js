@@ -2,40 +2,34 @@ const express = require('express');
 const app = express();
 const server = require('http').Server(app);
 const io = require('socket.io')(server, {
-    cors: {
-        origin: "*", // อนุญาตให้เชื่อมต่อจากทุกที่
-        methods: ["GET", "POST"]
-    }
+    cors: { origin: "*" }
 });
+const path = require('path');
 
-// Port สำหรับรัน Server
+// Port สำหรับรัน
 const PORT = process.env.PORT || 3000;
 
+// 1. บอก Server ว่าไฟล์เว็บ (html, css, รูป) อยู่ที่ไหน (โฟลเดอร์ปัจจุบัน)
+app.use(express.static(__dirname));
+
+// 2. ถ้ามีคนเข้าหน้าแรก (Root) ให้ส่งไฟล์ index.html ไปโชว์
 app.get('/', (req, res) => {
-    res.send("VN CMD SERVER : ONLINE");
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// เมื่อมีคนเชื่อมต่อเข้ามา
+// 3. ระบบห้องสื่อสาร (Socket Logic)
 io.on('connection', socket => {
-    
-    // เมื่อคนนั้นขอเข้าห้อง (Join Room)
-    socket.on('join-room', (roomId, userId, userName) => {
-        console.log(`[JOIN] Room: ${roomId} | User: ${userId} (${userName})`);
-        
-        // พาเข้าห้อง
+    socket.on('join-room', (roomId, userId) => {
+        // console.log(`User ${userId} joined room ${roomId}`);
         socket.join(roomId);
+        socket.to(roomId).emit('user-connected', userId);
         
-        // บอกคนอื่นในห้องว่า "เห้ย มีเด็กใหม่มา!" (ส่ง userId ไปให้คนอื่นโทรหา)
-        socket.to(roomId).emit('user-connected', userId, userName);
-
-        // เมื่อคนนั้นหลุด/ออก
         socket.on('disconnect', () => {
-            console.log(`[LEAVE] Room: ${roomId} | User: ${userId}`);
             socket.to(roomId).emit('user-disconnected', userId);
         });
     });
 });
 
 server.listen(PORT, () => {
-    console.log(`>> SYSTEM READY ON PORT: ${PORT}`);
+    console.log(`VN CMD SYSTEM READY ON PORT: ${PORT}`);
 });
