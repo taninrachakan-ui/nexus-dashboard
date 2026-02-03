@@ -6,21 +6,21 @@ const io = require('socket.io')(server, {
 });
 const path = require('path');
 
-// Port สำหรับรัน
 const PORT = process.env.PORT || 3000;
 
-// 1. บอก Server ว่าไฟล์เว็บ (html, css, รูป) อยู่ที่ไหน (โฟลเดอร์ปัจจุบัน)
+// สั่งให้ Server รู้จักไฟล์ HTML/CSS
 app.use(express.static(__dirname));
 
-// 2. ถ้ามีคนเข้าหน้าแรก (Root) ให้ส่งไฟล์ index.html ไปโชว์
+// เมื่อมีคนเข้าเว็บ ให้ส่งไฟล์ index.html ไปโชว์
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// 3. ระบบห้องสื่อสาร (Socket Logic)
+// ระบบห้องสื่อสาร
 io.on('connection', socket => {
+    console.log('New connection: ' + socket.id);
+
     socket.on('join-room', (roomId, userId) => {
-        // console.log(`User ${userId} joined room ${roomId}`);
         socket.join(roomId);
         socket.to(roomId).emit('user-connected', userId);
         
