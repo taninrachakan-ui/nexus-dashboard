@@ -1,61 +1,41 @@
 const express = require('express');
 const app = express();
-const http = require('http').createServer(app);
-const io = require('socket.io')(http);
-const os = require('os-utils');
-const path = require('path');
+const server = require('http').Server(app);
+const io = require('socket.io')(server, {
+    cors: {
+        origin: "*", // อนุญาตให้เชื่อมต่อจากทุกที่
+        methods: ["GET", "POST"]
+    }
+});
 
-// ตั้งค่า Port (สำคัญมากสำหรับการ Deploy บน Render/Heroku)
+// Port สำหรับรัน Server
 const PORT = process.env.PORT || 3000;
 
-// บอก Server ให้ใช้ไฟล์ในโฟลเดอร์ 'public'
-app.use(express.static(path.join(__dirname, 'public')));
-
-// Route หลัก
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    res.send("VN CMD SERVER : ONLINE");
 });
 
-// Socket Connection
-io.on('connection', (socket) => {
-    console.log(`>> New Connection: ${socket.id}`);
+// เมื่อมีคนเชื่อมต่อเข้ามา
+io.on('connection', socket => {
     
-    // ส่งข้อความต้อนรับ
-    socket.emit('log-update', { type: 'sys', msg: 'Uplink established successfully.' });
+    // เมื่อคนนั้นขอเข้าห้อง (Join Room)
+    socket.on('join-room', (roomId, userId, userName) => {
+        console.log(`[JOIN] Room: ${roomId} | User: ${userId} (${userName})`);
+        
+        // พาเข้าห้อง
+        socket.join(roomId);
+        
+        // บอกคนอื่นในห้องว่า "เห้ย มีเด็กใหม่มา!" (ส่ง userId ไปให้คนอื่นโทรหา)
+        socket.to(roomId).emit('user-connected', userId, userName);
 
-    socket.on('disconnect', () => {
-        console.log(`<< Disconnected: ${socket.id}`);
+        // เมื่อคนนั้นหลุด/ออก
+        socket.on('disconnect', () => {
+            console.log(`[LEAVE] Room: ${roomId} | User: ${userId}`);
+            socket.to(roomId).emit('user-disconnected', userId);
+        });
     });
 });
 
-// Loop ส่งข้อมูล System Stats (ทำงานทุก 1 วินาที)
-setInterval(() => {
-    os.cpuUsage(function(cpuPercent) {
-        
-        // คำนวณ RAM
-        const totalMem = os.totalmem();
-        const freeMem = os.freemem();
-        const usedMem = totalMem - freeMem;
-        const ramPercent = (usedMem / totalMem) * 100;
-
-        // ข้อมูลที่จะส่ง
-        const stats = {
-            cpu: (cpuPercent * 100).toFixed(1),
-            ram: ramPercent.toFixed(1),
-            uptime: os.sysUptime(),
-            // จำลอง Traffic เน็ต (เพราะ Node.js เข้าถึง Network Card โดยตรงยากบน Cloud)
-            netRx: (Math.random() * 5 + 2).toFixed(1),
-            netTx: (Math.random() * 10 + 1).toFixed(1)
-        };
-
-        io.emit('system-stats', stats);
-    });
-}, 1000);
-
-// เริ่มรัน Server
-http.listen(PORT, () => {
-    console.log(`-----------------------------------------`);
-    console.log(`🚀 SYSTEM READY`);
-    console.log(`📡 Listening on Port: ${PORT}`);
-    console.log(`-----------------------------------------`);
+server.listen(PORT, () => {
+    console.log(`>> SYSTEM READY ON PORT: ${PORT}`);
 });
